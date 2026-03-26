@@ -3,228 +3,797 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>音频转 MP3 批量转换器</title>
+  <title>MusicDance - 音频转换</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg-primary: #0d0d0d;
+      --bg-secondary: #1a1a2e;
+      --bg-card: rgba(30, 30, 50, 0.8);
+      --accent: #6366f1;
+      --accent-light: #818cf8;
+      --accent-gradient: linear-gradient(135deg, #6366f1, #a855f7, #ec4899);
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --error: #ef4444;
+      --border: rgba(255, 255, 255, 0.1);
+    }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #e5e5e5;
-      color: #333;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "SF Pro Display", sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
       min-height: 100vh;
-      padding: 20px;
+      overflow-x: hidden;
     }
+
+    /* 动态背景 */
+    .bg-animation {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      overflow: hidden;
+    }
+
+    .bg-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.4;
+      animation: float 20s ease-in-out infinite;
+    }
+
+    .bg-orb:nth-child(1) {
+      width: 600px;
+      height: 600px;
+      background: #6366f1;
+      top: -200px;
+      left: -100px;
+      animation-delay: 0s;
+    }
+
+    .bg-orb:nth-child(2) {
+      width: 500px;
+      height: 500px;
+      background: #a855f7;
+      bottom: -150px;
+      right: -100px;
+      animation-delay: -7s;
+    }
+
+    .bg-orb:nth-child(3) {
+      width: 400px;
+      height: 400px;
+      background: #ec4899;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      animation-delay: -14s;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      25% { transform: translate(30px, -30px) scale(1.05); }
+      50% { transform: translate(-20px, 20px) scale(0.95); }
+      75% { transform: translate(20px, 30px) scale(1.02); }
+    }
+
+    /* 主容器 */
     .container {
-      background: #fff;
-      border-radius: 16px;
-      padding: 40px;
-      max-width: 800px;
+      max-width: 900px;
       margin: 0 auto;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      padding: 40px 20px;
+      position: relative;
     }
-    h1 {
+
+    /* 头部 */
+    .header {
       text-align: center;
-      margin-bottom: 8px;
-      font-size: 24px;
-      color: #333;
+      margin-bottom: 40px;
     }
-    .subtitle {
-      text-align: center;
-      color: #888;
-      font-size: 14px;
-      margin-bottom: 24px;
-    }
-    .upload-areas {
+
+    .logo {
       display: flex;
+      align-items: center;
+      justify-content: center;
       gap: 12px;
       margin-bottom: 16px;
     }
+
+    .logo-icon {
+      width: 56px;
+      height: 56px;
+      background: var(--accent-gradient);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 32px rgba(99, 102, 241, 0.4);
+    }
+
+    .logo-icon svg {
+      width: 32px;
+      height: 32px;
+      fill: white;
+    }
+
+    .logo-text {
+      font-size: 32px;
+      font-weight: 700;
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      color: var(--text-secondary);
+      font-size: 16px;
+      margin-top: 8px;
+    }
+
+    /* 功能标签 */
+    .feature-tags {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .feature-tag {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      border-radius: 20px;
+      font-size: 13px;
+      color: var(--accent-light);
+    }
+
+    .feature-tag svg {
+      width: 14px;
+      height: 14px;
+      stroke: var(--accent-light);
+      fill: none;
+      stroke-width: 2;
+    }
+
+    /* 上传区域 */
+    .upload-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
     .upload-area {
-      flex: 1;
-      border: 2px dashed #ccc;
-      border-radius: 12px;
-      padding: 24px 16px;
+      background: var(--bg-card);
+      border: 2px dashed var(--border);
+      border-radius: 20px;
+      padding: 32px 24px;
       text-align: center;
       cursor: pointer;
-      transition: all 0.3s;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(20px);
+      position: relative;
+      overflow: hidden;
     }
-    .upload-area:hover, .upload-area.dragover {
-      border-color: #888;
-      background: rgba(0, 0, 0, 0.03);
+
+    .upload-area::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: var(--accent-gradient);
+      opacity: 0;
+      transition: opacity 0.3s;
     }
-    .upload-area .icon { font-size: 32px; margin-bottom: 8px; }
-    .upload-area p { color: #888; font-size: 13px; }
-    .upload-area .title { color: #333; font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+
+    .upload-area:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+
+    .upload-area:hover::before {
+      opacity: 0.05;
+    }
+
+    .upload-area.dragover {
+      border-color: var(--accent-light);
+      background: rgba(99, 102, 241, 0.1);
+    }
+
+    .upload-icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 16px;
+      background: rgba(99, 102, 241, 0.15);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .upload-icon svg {
+      width: 32px;
+      height: 32px;
+      stroke: var(--accent-light);
+      fill: none;
+      stroke-width: 1.5;
+    }
+
+    .upload-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    .upload-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
     input[type="file"] { display: none; }
-    .file-list {
-      max-height: 450px;
-      overflow-y: auto;
+
+    /* 统计信息 */
+    .stats-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      background: var(--bg-card);
+      border-radius: 12px;
       margin-bottom: 16px;
-      border: 1px solid #eee;
-      border-radius: 8px;
+      backdrop-filter: blur(20px);
     }
-    .file-list.empty {
-      border: none;
+
+    .stats-info {
+      display: flex;
+      gap: 24px;
     }
+
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .stat-label {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* 总进度条 */
+    .total-progress {
+      height: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    .total-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--accent-gradient);
+      border-radius: 2px;
+      transition: width 0.3s ease;
+      position: relative;
+    }
+
+    .total-progress-fill::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+      animation: shimmer 1.5s infinite;
+    }
+
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+
+    /* 文件列表 */
+    .file-list-container {
+      background: var(--bg-card);
+      border-radius: 20px;
+      backdrop-filter: blur(20px);
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+
+    .file-list {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .file-list::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .file-list::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .file-list::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    .empty-state {
+      padding: 60px 20px;
+      text-align: center;
+    }
+
+    .empty-icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 20px;
+      background: rgba(99, 102, 241, 0.1);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .empty-icon svg {
+      width: 40px;
+      height: 40px;
+      stroke: var(--text-muted);
+      fill: none;
+      stroke-width: 1.5;
+    }
+
+    .empty-text {
+      color: var(--text-muted);
+      font-size: 15px;
+    }
+
+    /* 文件夹分组 */
     .folder-group {
-      border-bottom: 1px solid #eee;
+      border-bottom: 1px solid var(--border);
     }
+
     .folder-group:last-child {
       border-bottom: none;
     }
+
     .folder-header {
       display: flex;
       align-items: center;
-      padding: 10px 12px;
-      background: #f8f8f8;
-      font-size: 12px;
-      color: #666;
-      gap: 6px;
+      gap: 10px;
+      padding: 12px 20px;
+      background: rgba(0, 0, 0, 0.2);
       position: sticky;
       top: 0;
+      z-index: 1;
     }
-    .folder-header .folder-icon { opacity: 0.6; }
-    .folder-header .folder-path {
+
+    .folder-icon {
+      width: 20px;
+      height: 20px;
+      opacity: 0.6;
+    }
+
+    .folder-path {
       flex: 1;
+      font-size: 13px;
+      color: var(--text-secondary);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    .folder-header .folder-count { color: #999; }
+
+    .folder-count {
+      font-size: 12px;
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.05);
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+
+    /* 文件项 */
     .file-item {
       display: flex;
       align-items: center;
-      padding: 8px 12px 8px 24px;
-      border-bottom: 1px solid #f0f0f0;
-      gap: 10px;
+      gap: 12px;
+      padding: 12px 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      transition: background 0.2s;
     }
-    .file-item:last-child { border-bottom: none; }
-    .file-item .name {
+
+    .file-item:last-child {
+      border-bottom: none;
+    }
+
+    .file-item:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .file-icon {
+      width: 40px;
+      height: 40px;
+      background: rgba(99, 102, 241, 0.15);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .file-icon svg {
+      width: 20px;
+      height: 20px;
+      stroke: var(--accent-light);
+      fill: none;
+      stroke-width: 1.5;
+    }
+
+    .file-info {
       flex: 1;
-      font-size: 13px;
+      min-width: 0;
+    }
+
+    .file-name {
+      font-size: 14px;
+      color: var(--text-primary);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      margin-bottom: 2px;
     }
-    .file-item .size {
-      color: #888;
+
+    .file-size {
       font-size: 12px;
-      white-space: nowrap;
+      color: var(--text-muted);
     }
-    .file-item .status {
-      font-size: 11px;
-      padding: 2px 8px;
-      border-radius: 4px;
-      white-space: nowrap;
+
+    .file-status {
+      font-size: 12px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-weight: 500;
+      flex-shrink: 0;
     }
-    .file-item .status.pending { background: #f0f0f0; color: #666; }
-    .file-item .status.processing { background: #fff3cd; color: #856404; }
-    .file-item .status.done { background: #d4edda; color: #155724; }
-    .file-item .status.error { background: #f8d7da; color: #721c24; }
-    .file-item .progress {
-      width: 50px;
+
+    .file-status.pending {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+    }
+
+    .file-status.processing {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--warning);
+    }
+
+    .file-status.done {
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--success);
+    }
+
+    .file-status.error {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--error);
+    }
+
+    /* 进度条 */
+    .file-progress {
+      width: 60px;
       height: 4px;
-      background: #e0e0e0;
+      background: rgba(255, 255, 255, 0.1);
       border-radius: 2px;
       overflow: hidden;
+      flex-shrink: 0;
     }
-    .file-item .progress .fill {
+
+    .file-progress-fill {
       height: 100%;
       width: 0%;
-      background: #555;
+      background: var(--accent-gradient);
+      border-radius: 2px;
       transition: width 0.2s;
     }
+
+    /* 按钮行 */
     .btn-row {
       display: flex;
-      gap: 10px;
+      gap: 12px;
     }
+
     .btn {
       flex: 1;
-      padding: 14px;
+      padding: 16px 24px;
       border: none;
-      border-radius: 10px;
-      font-size: 16px;
+      border-radius: 14px;
+      font-size: 15px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.3s;
-      background: #555;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn svg {
+      width: 20px;
+      height: 20px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+    }
+
+    .btn-primary {
+      background: var(--accent-gradient);
       color: white;
+      box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
     }
-    .btn:hover:not(:disabled) { opacity: 0.9; }
-    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .btn.secondary { background: #888; }
-    .stats {
-      text-align: center;
-      font-size: 13px;
-      color: #888;
-      margin-bottom: 12px;
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 30px rgba(99, 102, 241, 0.5);
     }
-    .total-progress {
-      height: 6px;
-      background: #e0e0e0;
-      border-radius: 3px;
-      margin-bottom: 16px;
-      overflow: hidden;
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
     }
-    .total-progress .fill {
-      height: 100%;
-      width: 0%;
-      background: #555;
-      transition: width 0.3s;
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
     }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-primary);
+    }
+
+    .btn-secondary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* 格式提示 */
     .format-hint {
       text-align: center;
-      font-size: 12px;
-      color: #aaa;
-      margin-top: 16px;
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 20px;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 10px;
     }
-    .empty-state {
-      text-align: center;
-      padding: 40px 20px;
-      color: #999;
+
+    .format-hint span {
+      color: var(--accent-light);
     }
-    .empty-state .icon { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
+
+    /* 响应式 */
+    @media (max-width: 600px) {
+      .container {
+        padding: 20px 16px;
+      }
+
+      .upload-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .stats-bar {
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .stats-info {
+        width: 100%;
+        justify-content: space-around;
+      }
+
+      .btn-row {
+        flex-direction: column;
+      }
+
+      .btn {
+        padding: 14px;
+      }
+    }
+
+    /* 音波动画 */
+    .wave-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      height: 24px;
+    }
+
+    .wave-bar {
+      width: 3px;
+      background: var(--accent-light);
+      border-radius: 2px;
+      animation: wave 1s ease-in-out infinite;
+    }
+
+    .wave-bar:nth-child(1) { animation-delay: 0s; }
+    .wave-bar:nth-child(2) { animation-delay: 0.1s; }
+    .wave-bar:nth-child(3) { animation-delay: 0.2s; }
+    .wave-bar:nth-child(4) { animation-delay: 0.3s; }
+    .wave-bar:nth-child(5) { animation-delay: 0.4s; }
+
+    @keyframes wave {
+      0%, 100% { height: 8px; }
+      50% { height: 20px; }
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>音频转 MP3 批量转换器</h1>
-    <p class="subtitle">支持文件夹上传，保留目录结构</p>
+  <!-- 动态背景 -->
+  <div class="bg-animation">
+    <div class="bg-orb"></div>
+    <div class="bg-orb"></div>
+    <div class="bg-orb"></div>
+  </div>
 
-    <div class="upload-areas">
+  <div class="container">
+    <!-- 头部 -->
+    <div class="header">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M9 18V5l12-2v13"/>
+            <circle cx="6" cy="18" r="3"/>
+            <circle cx="18" cy="16" r="3"/>
+          </svg>
+        </div>
+        <span class="logo-text">MusicDance</span>
+      </div>
+      <p class="subtitle">将任意音视频文件提取为 MP3 · 支持批量处理</p>
+    </div>
+
+    <!-- 功能说明 -->
+    <div class="feature-tags">
+      <div class="feature-tag">
+        <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <span>视频提取音频</span>
+      </div>
+      <div class="feature-tag">
+        <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <span>无损格式转换</span>
+      </div>
+      <div class="feature-tag">
+        <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <span>保留目录结构</span>
+      </div>
+      <div class="feature-tag">
+        <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <span>单个/批量均可</span>
+      </div>
+    </div>
+
+    <!-- 上传区域 -->
+    <div class="upload-grid">
       <div class="upload-area" id="folderUploadArea">
-        <div class="icon">📁</div>
-        <div class="title">选择文件夹</div>
-        <p>保留完整目录结构</p>
+        <div class="upload-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+          </svg>
+        </div>
+        <div class="upload-title">选择文件夹</div>
+        <div class="upload-desc">保留完整目录结构</div>
       </div>
       <div class="upload-area" id="fileUploadArea">
-        <div class="icon">🎵</div>
-        <div class="title">选择文件</div>
-        <p>支持多选</p>
+        <div class="upload-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="12" y1="18" x2="12" y2="12"/>
+            <line x1="9" y1="15" x2="15" y2="15"/>
+          </svg>
+        </div>
+        <div class="upload-title">选择文件</div>
+        <div class="upload-desc">支持多选或拖拽</div>
       </div>
     </div>
     <input type="file" id="folderInput" webkitdirectory directory multiple>
     <input type="file" id="fileInput" accept="video/mp4,audio/*,.mp4,.m4a,.m4b,.wav,.flac,.aac,.ogg,.wma,.avi,.mov,.mkv,.webm,.3gp" multiple>
 
-    <div class="stats" id="stats"></div>
-    <div class="total-progress" id="totalProgressWrap" style="display:none">
-      <div class="fill" id="totalProgressFill"></div>
-    </div>
-
-    <div class="file-list empty" id="fileList">
-      <div class="empty-state">
-        <div class="icon">📂</div>
-        <p>选择文件夹或文件开始转换</p>
+    <!-- 统计信息 -->
+    <div class="stats-bar" id="statsBar" style="display: none;">
+      <div class="stats-info">
+        <div class="stat-item">
+          <span class="stat-value" id="fileCount">0</span>
+          <span class="stat-label">个文件</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="totalSize">0 MB</span>
+          <span class="stat-label">总大小</span>
+        </div>
+      </div>
+      <div class="wave-container" id="waveContainer" style="display: none;">
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
       </div>
     </div>
 
-    <div class="btn-row">
-      <button class="btn" id="convertBtn" disabled>开始转换</button>
-      <button class="btn secondary" id="downloadAllBtn" style="display:none">打包下载</button>
-      <button class="btn secondary" id="clearBtn" style="display:none">清空</button>
+    <!-- 总进度条 -->
+    <div class="total-progress" id="totalProgressWrap" style="display:none">
+      <div class="total-progress-fill" id="totalProgressFill"></div>
     </div>
 
-    <p class="format-hint">支持格式：MP4, M4A, WAV, FLAC, AAC, OGG, WMA, AVI, MOV, MKV, WebM, 3GP 等</p>
+    <!-- 文件列表 -->
+    <div class="file-list-container">
+      <div class="file-list" id="fileList">
+        <div class="empty-state">
+          <div class="empty-icon">
+            <svg viewBox="0 0 24 24">
+              <path d="M9 18V5l12-2v13"/>
+              <circle cx="6" cy="18" r="3"/>
+              <circle cx="18" cy="16" r="3"/>
+            </svg>
+          </div>
+          <p class="empty-text">选择文件或文件夹，将音视频提取为 MP3</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 按钮 -->
+    <div class="btn-row">
+      <button class="btn btn-primary" id="convertBtn" disabled>
+        <svg viewBox="0 0 24 24">
+          <polygon points="5 3 19 12 5 21 5 3"/>
+        </svg>
+        开始转换
+      </button>
+      <button class="btn btn-secondary" id="downloadAllBtn" style="display:none">
+        <svg viewBox="0 0 24 24">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        打包下载
+      </button>
+      <button class="btn btn-secondary" id="clearBtn" style="display:none">
+        <svg viewBox="0 0 24 24">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+        </svg>
+        清空
+      </button>
+    </div>
+
+    <div class="format-hint">
+      支持格式：<span>MP4, M4A, WAV, FLAC, AAC, OGG, WMA, AVI, MOV, MKV, WebM, 3GP</span> 等音视频文件，自动提取音频转为 MP3
+    </div>
   </div>
 
   <script>
@@ -233,21 +802,24 @@
     const folderInput = document.getElementById('folderInput');
     const fileInput = document.getElementById('fileInput');
     const fileList = document.getElementById('fileList');
-    const stats = document.getElementById('stats');
+    const statsBar = document.getElementById('statsBar');
+    const fileCountEl = document.getElementById('fileCount');
+    const totalSizeEl = document.getElementById('totalSize');
     const convertBtn = document.getElementById('convertBtn');
     const downloadAllBtn = document.getElementById('downloadAllBtn');
     const clearBtn = document.getElementById('clearBtn');
     const totalProgressWrap = document.getElementById('totalProgressWrap');
     const totalProgressFill = document.getElementById('totalProgressFill');
+    const waveContainer = document.getElementById('waveContainer');
 
-    // 支持的音频格式
     const SUPPORTED_FORMATS = new Set([
       '.mp4', '.m4a', '.m4b', '.m4p', '.wav', '.flac', '.aac',
       '.ogg', '.wma', '.avi', '.mov', '.mkv', '.webm', '.3gp', '.mp3'
     ]);
 
-    let files = [];  // { file, relativePath }
-    let results = []; // { url, relativePath, name }
+    let files = [];
+    let results = [];
+    let isConverting = false;
 
     // 文件夹选择
     folderUploadArea.addEventListener('click', () => folderInput.click());
@@ -288,7 +860,6 @@
       const fileList = [];
 
       if (items) {
-        // 使用 DataTransferItemList 接口
         for (let i = 0; i < items.length; i++) {
           const item = items[i].webkitGetAsEntry();
           if (item) {
@@ -300,7 +871,6 @@
           }
         }
       } else {
-        // 回退到 FileList 接口
         handleFiles(dataTransfer.files, false);
       }
 
@@ -331,10 +901,6 @@
           const ext = '.' + f.name.split('.').pop().toLowerCase();
           return SUPPORTED_FORMATS.has(ext);
         });
-        if (validFiles.length < fileList.length) {
-          const skipped = fileList.length - validFiles.length;
-          console.log(`已过滤 ${skipped} 个不支持的文件`);
-        }
         if (validFiles.length > 0) {
           files = files.concat(validFiles.map(f => ({
             file: f,
@@ -352,11 +918,6 @@
         const ext = '.' + f.name.split('.').pop().toLowerCase();
         return SUPPORTED_FORMATS.has(ext);
       });
-
-      if (validFiles.length < newFiles.length) {
-        const skipped = newFiles.length - validFiles.length;
-        console.log(`已过滤 ${skipped} 个不支持的文件`);
-      }
 
       if (files.length + validFiles.length > 500) {
         alert('最多支持500个文件');
@@ -386,19 +947,21 @@
 
     function renderList() {
       if (files.length === 0) {
-        fileList.classList.add('empty');
         fileList.innerHTML = `
           <div class="empty-state">
-            <div class="icon">📂</div>
-            <p>选择文件夹或文件开始转换</p>
+            <div class="empty-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M9 18V5l12-2v13"/>
+                <circle cx="6" cy="18" r="3"/>
+                <circle cx="18" cy="16" r="3"/>
+              </svg>
+            </div>
+            <p class="empty-text">选择文件或文件夹，将音视频提取为 MP3</p>
           </div>
         `;
         return;
       }
 
-      fileList.classList.remove('empty');
-
-      // 按文件夹分组
       const groups = {};
       files.forEach((f, i) => {
         const folder = getFolderPath(f.relativePath);
@@ -414,17 +977,28 @@
         html += `
           <div class="folder-group">
             <div class="folder-header">
-              <span class="folder-icon">📁</span>
+              <svg class="folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+              </svg>
               <span class="folder-path">${folder || '根目录'}</span>
               <span class="folder-count">${folderFiles.length} 个文件</span>
             </div>
             ${folderFiles.map(f => `
               <div class="file-item" data-index="${f.index}">
-                <span class="name">${f.file.name}</span>
-                <span class="size">${formatSize(f.file.size)}</span>
-                <span class="status pending" id="status-${f.index}">等待中</span>
-                <div class="progress" id="progress-wrap-${f.index}" style="display:none">
-                  <div class="fill" id="progress-${f.index}"></div>
+                <div class="file-icon">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M9 18V5l12-2v13"/>
+                    <circle cx="6" cy="18" r="3"/>
+                    <circle cx="18" cy="16" r="3"/>
+                  </svg>
+                </div>
+                <div class="file-info">
+                  <div class="file-name">${f.file.name}</div>
+                  <div class="file-size">${formatSize(f.file.size)}</div>
+                </div>
+                <span class="file-status pending" id="status-${f.index}">等待中</span>
+                <div class="file-progress" id="progress-wrap-${f.index}" style="display:none">
+                  <div class="file-progress-fill" id="progress-${f.index}"></div>
                 </div>
               </div>
             `).join('')}
@@ -438,12 +1012,15 @@
     function updateStats() {
       const total = files.length;
       const totalSize = files.reduce((sum, f) => sum + f.file.size, 0);
+
       if (total > 0) {
-        stats.textContent = `${total} 个文件，共 ${formatSize(totalSize)}`;
+        statsBar.style.display = 'flex';
+        fileCountEl.textContent = total;
+        totalSizeEl.textContent = formatSize(totalSize);
         convertBtn.disabled = false;
-        clearBtn.style.display = 'block';
+        clearBtn.style.display = 'flex';
       } else {
-        stats.textContent = '';
+        statsBar.style.display = 'none';
         convertBtn.disabled = true;
         clearBtn.style.display = 'none';
       }
@@ -456,18 +1033,20 @@
       updateStats();
       downloadAllBtn.style.display = 'none';
       totalProgressWrap.style.display = 'none';
+      waveContainer.style.display = 'none';
     });
 
     convertBtn.addEventListener('click', async () => {
-      if (!files.length) return;
+      if (!files.length || isConverting) return;
+
+      isConverting = true;
       convertBtn.disabled = true;
       totalProgressWrap.style.display = 'block';
+      waveContainer.style.display = 'flex';
       downloadAllBtn.style.display = 'none';
 
       let done = 0;
       const total = files.length;
-
-      // 并发转换，最多3个同时
       const concurrency = 3;
       let index = 0;
 
@@ -486,8 +1065,10 @@
       }
       await Promise.all(workers);
 
+      isConverting = false;
       convertBtn.disabled = false;
-      downloadAllBtn.style.display = 'inline-block';
+      waveContainer.style.display = 'none';
+      downloadAllBtn.style.display = 'flex';
     });
 
     function convertFile(index) {
@@ -497,7 +1078,7 @@
         const progressWrap = document.getElementById(`progress-wrap-${index}`);
         const progressEl = document.getElementById(`progress-${index}`);
 
-        statusEl.className = 'status processing';
+        statusEl.className = 'file-status processing';
         statusEl.textContent = '转换中';
         progressWrap.style.display = 'block';
 
@@ -518,30 +1099,23 @@
           if (xhr.status === 200) {
             const blob = xhr.response;
             const url = URL.createObjectURL(blob);
-
-            // 从响应头获取原始文件名
             const originalName = decodeURIComponent(xhr.getResponseHeader('X-Original-Name') || file.name);
             const mp3Name = originalName.replace(/\.[^.]+$/, '.mp3');
 
-            results[index] = {
-              url,
-              relativePath,
-              name: mp3Name,
-              blob
-            };
+            results[index] = { url, relativePath, name: mp3Name, blob };
 
-            statusEl.className = 'status done';
+            statusEl.className = 'file-status done';
             statusEl.textContent = '完成';
             progressEl.style.width = '100%';
           } else {
-            statusEl.className = 'status error';
+            statusEl.className = 'file-status error';
             statusEl.textContent = '失败';
           }
           resolve();
         };
 
         xhr.onerror = () => {
-          statusEl.className = 'status error';
+          statusEl.className = 'file-status error';
           statusEl.textContent = '错误';
           resolve();
         };
@@ -563,13 +1137,17 @@
       }
 
       downloadAllBtn.disabled = true;
-      downloadAllBtn.textContent = '打包中...';
+      downloadAllBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" style="animation: spin 1s linear infinite;">
+          <circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="32"/>
+        </svg>
+        打包中...
+      `;
 
       try {
         const zip = new JSZip();
 
         successResults.forEach(r => {
-          // 保留目录结构
           const mp3Path = r.relativePath.replace(/\.[^.]+$/, '.mp3');
           zip.file(mp3Path, r.blob);
         });
@@ -578,23 +1156,35 @@
           type: 'blob',
           compression: 'DEFLATE',
           compressionOptions: { level: 5 }
-        }, (metadata) => {
-          downloadAllBtn.textContent = `打包中... ${metadata.percent.toFixed(0)}%`;
         });
 
         const url = URL.createObjectURL(content);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'converted_audio.zip';
+        a.download = 'MusicDance_converted.zip';
         a.click();
         URL.revokeObjectURL(url);
 
-        downloadAllBtn.textContent = '打包下载';
+        downloadAllBtn.innerHTML = `
+          <svg viewBox="0 0 24 24">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          打包下载
+        `;
         downloadAllBtn.disabled = false;
       } catch (err) {
         console.error('打包失败:', err);
         alert('打包失败: ' + err.message);
-        downloadAllBtn.textContent = '打包下载';
+        downloadAllBtn.innerHTML = `
+          <svg viewBox="0 0 24 24">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          打包下载
+        `;
         downloadAllBtn.disabled = false;
       }
     });
