@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>音频转 MP3 批量转换器</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #e5e5e5;
+      color: #333;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      background: #fff;
+      border-radius: 16px;
+      padding: 40px;
+      max-width: 800px;
+      margin: 0 auto;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 8px;
+      font-size: 24px;
+      color: #333;
+    }
+    .subtitle {
+      text-align: center;
+      color: #888;
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+    .upload-areas {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .upload-area {
+      flex: 1;
+      border: 2px dashed #ccc;
+      border-radius: 12px;
+      padding: 24px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .upload-area:hover, .upload-area.dragover {
+      border-color: #888;
+      background: rgba(0, 0, 0, 0.03);
+    }
+    .upload-area .icon { font-size: 32px; margin-bottom: 8px; }
+    .upload-area p { color: #888; font-size: 13px; }
+    .upload-area .title { color: #333; font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+    input[type="file"] { display: none; }
+    .file-list {
+      max-height: 450px;
+      overflow-y: auto;
+      margin-bottom: 16px;
+      border: 1px solid #eee;
+      border-radius: 8px;
+    }
+    .file-list.empty {
+      border: none;
+    }
+    .folder-group {
+      border-bottom: 1px solid #eee;
+    }
+    .folder-group:last-child {
+      border-bottom: none;
+    }
+    .folder-header {
+      display: flex;
+      align-items: center;
+      padding: 10px 12px;
+      background: #f8f8f8;
+      font-size: 12px;
+      color: #666;
+      gap: 6px;
+      position: sticky;
+      top: 0;
+    }
+    .folder-header .folder-icon { opacity: 0.6; }
+    .folder-header .folder-path {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .folder-header .folder-count { color: #999; }
+    .file-item {
+      display: flex;
+      align-items: center;
+      padding: 8px 12px 8px 24px;
+      border-bottom: 1px solid #f0f0f0;
+      gap: 10px;
+    }
+    .file-item:last-child { border-bottom: none; }
+    .file-item .name {
+      flex: 1;
+      font-size: 13px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .file-item .size {
+      color: #888;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .file-item .status {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+    .file-item .status.pending { background: #f0f0f0; color: #666; }
+    .file-item .status.processing { background: #fff3cd; color: #856404; }
+    .file-item .status.done { background: #d4edda; color: #155724; }
+    .file-item .status.error { background: #f8d7da; color: #721c24; }
+    .file-item .progress {
+      width: 50px;
+      height: 4px;
+      background: #e0e0e0;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .file-item .progress .fill {
+      height: 100%;
+      width: 0%;
+      background: #555;
+      transition: width 0.2s;
+    }
+    .btn-row {
+      display: flex;
+      gap: 10px;
+    }
+    .btn {
+      flex: 1;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      background: #555;
+      color: white;
+    }
+    .btn:hover:not(:disabled) { opacity: 0.9; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn.secondary { background: #888; }
+    .stats {
+      text-align: center;
+      font-size: 13px;
+      color: #888;
+      margin-bottom: 12px;
+    }
+    .total-progress {
+      height: 6px;
+      background: #e0e0e0;
+      border-radius: 3px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    .total-progress .fill {
+      height: 100%;
+      width: 0%;
+      background: #555;
+      transition: width 0.3s;
+    }
+    .format-hint {
+      text-align: center;
+      font-size: 12px;
+      color: #aaa;
+      margin-top: 16px;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #999;
+    }
+    .empty-state .icon { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>音频转 MP3 批量转换器</h1>
+    <p class="subtitle">支持文件夹上传，保留目录结构</p>
+
+    <div class="upload-areas">
+      <div class="upload-area" id="folderUploadArea">
+        <div class="icon">📁</div>
+        <div class="title">选择文件夹</div>
+        <p>保留完整目录结构</p>
+      </div>
+      <div class="upload-area" id="fileUploadArea">
+        <div class="icon">🎵</div>
+        <div class="title">选择文件</div>
+        <p>支持多选</p>
+      </div>
+    </div>
+    <input type="file" id="folderInput" webkitdirectory directory multiple>
+    <input type="file" id="fileInput" accept="video/mp4,audio/*,.mp4,.m4a,.m4b,.wav,.flac,.aac,.ogg,.wma,.avi,.mov,.mkv,.webm,.3gp" multiple>
+
+    <div class="stats" id="stats"></div>
+    <div class="total-progress" id="totalProgressWrap" style="display:none">
+      <div class="fill" id="totalProgressFill"></div>
+    </div>
+
+    <div class="file-list empty" id="fileList">
+      <div class="empty-state">
+        <div class="icon">📂</div>
+        <p>选择文件夹或文件开始转换</p>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" id="convertBtn" disabled>开始转换</button>
+      <button class="btn secondary" id="downloadAllBtn" style="display:none">打包下载</button>
+      <button class="btn secondary" id="clearBtn" style="display:none">清空</button>
+    </div>
+
+    <p class="format-hint">支持格式：MP4, M4A, WAV, FLAC, AAC, OGG, WMA, AVI, MOV, MKV, WebM, 3GP 等</p>
+  </div>
+
+  <script>
+    const folderUploadArea = document.getElementById('folderUploadArea');
+    const fileUploadArea = document.getElementById('fileUploadArea');
+    const folderInput = document.getElementById('folderInput');
+    const fileInput = document.getElementById('fileInput');
+    const fileList = document.getElementById('fileList');
+    const stats = document.getElementById('stats');
+    const convertBtn = document.getElementById('convertBtn');
+    const downloadAllBtn = document.getElementById('downloadAllBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const totalProgressWrap = document.getElementById('totalProgressWrap');
+    const totalProgressFill = document.getElementById('totalProgressFill');
+
+    // 支持的音频格式
+    const SUPPORTED_FORMATS = new Set([
+      '.mp4', '.m4a', '.m4b', '.m4p', '.wav', '.flac', '.aac',
+      '.ogg', '.wma', '.avi', '.mov', '.mkv', '.webm', '.3gp', '.mp3'
+    ]);
+
+    let files = [];  // { file, relativePath }
+    let results = []; // { url, relativePath, name }
+
+    // 文件夹选择
+    folderUploadArea.addEventListener('click', () => folderInput.click());
+    folderUploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      folderUploadArea.classList.add('dragover');
+    });
+    folderUploadArea.addEventListener('dragleave', () => folderUploadArea.classList.remove('dragover'));
+    folderUploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      folderUploadArea.classList.remove('dragover');
+      handleDrop(e.dataTransfer);
+    });
+
+    // 文件选择
+    fileUploadArea.addEventListener('click', () => fileInput.click());
+    fileUploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      fileUploadArea.classList.add('dragover');
+    });
+    fileUploadArea.addEventListener('dragleave', () => fileUploadArea.classList.remove('dragover'));
+    fileUploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      fileUploadArea.classList.remove('dragover');
+      handleDrop(e.dataTransfer);
+    });
+
+    folderInput.addEventListener('change', (e) => {
+      if (e.target.files.length) handleFiles(e.target.files, true);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length) handleFiles(e.target.files, false);
+    });
+
+    function handleDrop(dataTransfer) {
+      const items = dataTransfer.items;
+      const fileList = [];
+
+      if (items) {
+        // 使用 DataTransferItemList 接口
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i].webkitGetAsEntry();
+          if (item) {
+            traverseFileTree(item, '').then(() => {
+              if (fileList.length > 0) {
+                processFileList(fileList);
+              }
+            });
+          }
+        }
+      } else {
+        // 回退到 FileList 接口
+        handleFiles(dataTransfer.files, false);
+      }
+
+      function traverseFileTree(item, path) {
+        return new Promise((resolve) => {
+          if (item.isFile) {
+            item.file((file) => {
+              file.relativePath = path + file.name;
+              fileList.push(file);
+              resolve();
+            });
+          } else if (item.isDirectory) {
+            const dirReader = item.createReader();
+            dirReader.readEntries((entries) => {
+              const promises = entries.map(entry =>
+                traverseFileTree(entry, path + item.name + '/')
+              );
+              Promise.all(promises).then(resolve);
+            });
+          } else {
+            resolve();
+          }
+        });
+      }
+
+      function processFileList(fileList) {
+        const validFiles = fileList.filter(f => {
+          const ext = '.' + f.name.split('.').pop().toLowerCase();
+          return SUPPORTED_FORMATS.has(ext);
+        });
+        if (validFiles.length < fileList.length) {
+          const skipped = fileList.length - validFiles.length;
+          console.log(`已过滤 ${skipped} 个不支持的文件`);
+        }
+        if (validFiles.length > 0) {
+          files = files.concat(validFiles.map(f => ({
+            file: f,
+            relativePath: f.relativePath || f.name
+          })));
+          results = new Array(files.length).fill(null);
+          renderList();
+          updateStats();
+        }
+      }
+    }
+
+    function handleFiles(newFiles, isFolder) {
+      const validFiles = Array.from(newFiles).filter(f => {
+        const ext = '.' + f.name.split('.').pop().toLowerCase();
+        return SUPPORTED_FORMATS.has(ext);
+      });
+
+      if (validFiles.length < newFiles.length) {
+        const skipped = newFiles.length - validFiles.length;
+        console.log(`已过滤 ${skipped} 个不支持的文件`);
+      }
+
+      if (files.length + validFiles.length > 500) {
+        alert('最多支持500个文件');
+        return;
+      }
+
+      files = files.concat(validFiles.map(f => ({
+        file: f,
+        relativePath: f.webkitRelativePath || f.name
+      })));
+      results = new Array(files.length).fill(null);
+      renderList();
+      updateStats();
+    }
+
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+    }
+
+    function getFolderPath(relativePath) {
+      const parts = relativePath.split('/');
+      if (parts.length <= 1) return '';
+      return parts.slice(0, -1).join('/');
+    }
+
+    function renderList() {
+      if (files.length === 0) {
+        fileList.classList.add('empty');
+        fileList.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">📂</div>
+            <p>选择文件夹或文件开始转换</p>
+          </div>
+        `;
+        return;
+      }
+
+      fileList.classList.remove('empty');
+
+      // 按文件夹分组
+      const groups = {};
+      files.forEach((f, i) => {
+        const folder = getFolderPath(f.relativePath);
+        if (!groups[folder]) groups[folder] = [];
+        groups[folder].push({ ...f, index: i });
+      });
+
+      let html = '';
+      const sortedFolders = Object.keys(groups).sort();
+
+      sortedFolders.forEach(folder => {
+        const folderFiles = groups[folder];
+        html += `
+          <div class="folder-group">
+            <div class="folder-header">
+              <span class="folder-icon">📁</span>
+              <span class="folder-path">${folder || '根目录'}</span>
+              <span class="folder-count">${folderFiles.length} 个文件</span>
+            </div>
+            ${folderFiles.map(f => `
+              <div class="file-item" data-index="${f.index}">
+                <span class="name">${f.file.name}</span>
+                <span class="size">${formatSize(f.file.size)}</span>
+                <span class="status pending" id="status-${f.index}">等待中</span>
+                <div class="progress" id="progress-wrap-${f.index}" style="display:none">
+                  <div class="fill" id="progress-${f.index}"></div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      });
+
+      fileList.innerHTML = html;
+    }
+
+    function updateStats() {
+      const total = files.length;
+      const totalSize = files.reduce((sum, f) => sum + f.file.size, 0);
+      if (total > 0) {
+        stats.textContent = `${total} 个文件，共 ${formatSize(totalSize)}`;
+        convertBtn.disabled = false;
+        clearBtn.style.display = 'block';
+      } else {
+        stats.textContent = '';
+        convertBtn.disabled = true;
+        clearBtn.style.display = 'none';
+      }
+    }
+
+    clearBtn.addEventListener('click', () => {
+      files = [];
+      results = [];
+      renderList();
+      updateStats();
+      downloadAllBtn.style.display = 'none';
+      totalProgressWrap.style.display = 'none';
+    });
+
+    convertBtn.addEventListener('click', async () => {
+      if (!files.length) return;
+      convertBtn.disabled = true;
+      totalProgressWrap.style.display = 'block';
+      downloadAllBtn.style.display = 'none';
+
+      let done = 0;
+      const total = files.length;
+
+      // 并发转换，最多3个同时
+      const concurrency = 3;
+      let index = 0;
+
+      async function processNext() {
+        while (index < files.length) {
+          const i = index++;
+          await convertFile(i);
+          done++;
+          totalProgressFill.style.width = (done / total * 100) + '%';
+        }
+      }
+
+      const workers = [];
+      for (let j = 0; j < Math.min(concurrency, files.length); j++) {
+        workers.push(processNext());
+      }
+      await Promise.all(workers);
+
+      convertBtn.disabled = false;
+      downloadAllBtn.style.display = 'inline-block';
+    });
+
+    function convertFile(index) {
+      return new Promise((resolve) => {
+        const { file, relativePath } = files[index];
+        const statusEl = document.getElementById(`status-${index}`);
+        const progressWrap = document.getElementById(`progress-wrap-${index}`);
+        const progressEl = document.getElementById(`progress-${index}`);
+
+        statusEl.className = 'status processing';
+        statusEl.textContent = '转换中';
+        progressWrap.style.display = 'block';
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/convert');
+        xhr.responseType = 'blob';
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            progressEl.style.width = (e.loaded / e.total * 50) + '%';
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status === 200) {
+            const blob = xhr.response;
+            const url = URL.createObjectURL(blob);
+
+            // 从响应头获取原始文件名
+            const originalName = decodeURIComponent(xhr.getResponseHeader('X-Original-Name') || file.name);
+            const mp3Name = originalName.replace(/\.[^.]+$/, '.mp3');
+
+            results[index] = {
+              url,
+              relativePath,
+              name: mp3Name,
+              blob
+            };
+
+            statusEl.className = 'status done';
+            statusEl.textContent = '完成';
+            progressEl.style.width = '100%';
+          } else {
+            statusEl.className = 'status error';
+            statusEl.textContent = '失败';
+          }
+          resolve();
+        };
+
+        xhr.onerror = () => {
+          statusEl.className = 'status error';
+          statusEl.textContent = '错误';
+          resolve();
+        };
+
+        xhr.upload.onload = () => {
+          progressEl.style.width = '50%';
+        };
+
+        xhr.send(formData);
+      });
+    }
+
+    downloadAllBtn.addEventListener('click', async () => {
+      const successResults = results.filter(r => r && r.blob);
+
+      if (successResults.length === 0) {
+        alert('没有可下载的文件');
+        return;
+      }
+
+      downloadAllBtn.disabled = true;
+      downloadAllBtn.textContent = '打包中...';
+
+      try {
+        const zip = new JSZip();
+
+        successResults.forEach(r => {
+          // 保留目录结构
+          const mp3Path = r.relativePath.replace(/\.[^.]+$/, '.mp3');
+          zip.file(mp3Path, r.blob);
+        });
+
+        const content = await zip.generateAsync({
+          type: 'blob',
+          compression: 'DEFLATE',
+          compressionOptions: { level: 5 }
+        }, (metadata) => {
+          downloadAllBtn.textContent = `打包中... ${metadata.percent.toFixed(0)}%`;
+        });
+
+        const url = URL.createObjectURL(content);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'converted_audio.zip';
+        a.click();
+        URL.revokeObjectURL(url);
+
+        downloadAllBtn.textContent = '打包下载';
+        downloadAllBtn.disabled = false;
+      } catch (err) {
+        console.error('打包失败:', err);
+        alert('打包失败: ' + err.message);
+        downloadAllBtn.textContent = '打包下载';
+        downloadAllBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
